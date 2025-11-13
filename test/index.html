@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novel AI Editor - (Markdown Render Prototype)</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        /* (스타일 코드는 이전과 동일합니다) */
+        :root {
+            --primary-color: #4A4E69;
+            --secondary-color: #9A8C98;
+            --background-color: #F2E9E4;
+            --text-color: #22223B;
+            --card-bg-color: #FFFFFF;
+            --border-color: #C9ADA7;
+        }
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        .main-content {
+            display: flex;
+            flex-direction: column;
+        }
+        .card {
+            background: var(--card-bg-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            grid-column: 1 / -1;
+        }
+        h1 {
+            color: var(--primary-color);
+            margin: 0;
+        }
+        h2, h3 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .chat-window {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .chat-message { margin-bottom: 15px; }
+        .user-message { text-align: right; }
+        .user-message p {
+            background-color: var(--primary-color);
+            color: white;
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 15px 15px 0 15px;
+            max-width: 80%;
+        }
+        .ai-message p {
+            background-color: #EAEAEA;
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 15px 15px 15px 0;
+            max-width: 80%;
+            text-align: left;
+            white-space: pre-wrap;
+        }
+        .ai-message strong { color: var(--primary-color); }
+        
+        /* ★★★ (수정) AI가 보낸 마크다운이 HTML로 변환되었을 때 스타일 ★★★ */
+        .ai-message-content {
+            background-color: #EAEAEA;
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 15px 15px 15px 0;
+            max-width: 80%;
+            text-align: left;
+        }
+        .ai-message-content p { margin: 5px 0; }
+        .ai-message-content ul, .ai-message-content ol {
+            padding-left: 20px;
+        }
+        .ai-message-content li {
+            margin-bottom: 5px;
+        }
+        /* ★★★ (수정 끝) ★★★ */
+
+
+        .chat-input { display: flex; }
+        .chat-input input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px 0 0 5px;
+        }
+        .chat-input button {
+            padding: 10px 15px;
+            border: none;
+            background-color: var(--secondary-color);
+            color: white;
+            cursor: pointer;
+            border-radius: 0 5px 5px 0;
+        }
+        .upload-section .upload-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: center;
+        }
+        .upload-section .upload-btn:hover {
+            background-color: #3a3d52;
+        }
+        .file-info {
+            margin-top: 10px;
+            font-style: italic;
+            color: var(--secondary-color);
+        }
+        .hidden { display: none; }
+        .analyze-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .analyze-buttons button {
+            flex-grow: 1;
+            padding: 10px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: not-allowed;
+            font-size: 15px;
+            opacity: 0.7;
+        }
+        .analyze-buttons button.enabled {
+            background-color: var(--primary-color);
+            cursor: pointer;
+            opacity: 1;
+        }
+        .analysis-panel {
+            grid-column: 2 / 3;
+            display: none;
+        }
+        .analysis-content {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        /* ★★★ (수정) 리포트 패널도 마크다운 스타일 적용 ★★★ */
+        .analysis-content p { margin: 5px 0; }
+        .analysis-content ul, .analysis-content ol {
+            padding-left: 20px;
+        }
+        .analysis-content li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Novel AI Editor (Markdown Render Prototype)</h1>
+        <p>당신의 첫 독자, AI 편집자가 원고의 완성도를 높여드립니다.</p>
+    </div>
+
+    <div class="container">
+        <div class="main-content">
+            <div class="card upload-section">
+                <h3>1. 원고 파일 업로드</h3>
+                <label for="fileUpload" class="upload-btn">원고 파일 선택 (.txt)</label>
+                <input type="file" id="fileUpload" class="hidden" accept=".txt">
+                <p id="fileInfo" class="file-info">선택된 파일이 없습니다.</p>
+                
+                <div class="analyze-buttons">
+                    <button id="btnConsistency" onclick="requestAnalysis('consistency')">설정 오류 분석</button>
+                    <button id="btnStructure" onclick="requestAnalysis('structure')">챕터 구조 분석</button>
+                </div>
+                <div id="analysisLoader" class="loader"></div>
+            </div>
+
+            <div class="card">
+                <h3>3. AI 편집자 Q&A</h3>
+                <div class="chat-window" id="chatWindow">
+                    <div class="chat-message ai-message">
+                        <p><strong>AI 편집자:</strong> 안녕하세요. 원고 파일을 업로드하고 분석하거나, 원고에 대해 궁금한 점을 질문해주세요.</p>
+                    </div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="userInput" placeholder="예: 3챕터의 긴장감이 부족한 것 같아." onkeydown="handleKeydown(event)">
+                    <button id="btnSend" onclick="sendMessage()">질문 전송</button>
+                </div>
+                <div id="chatLoader" class="loader"></div>
+            </div>
+        </div>
+
+        <div class="analysis-panel card" id="analysisPanel">
+            <h2>2. AI 분석 리포트</h2>
+            <h3 id="analysisTitle"></h3>
+            <div id="analysisResult" class="analysis-content">
+                <p>왼쪽에서 원고 파일(.txt)을 업로드하고 분석 버튼을 눌러주세요.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:5000/analyze';
+
+        const fileUpload = document.getElementById('fileUpload');
+        const fileInfo = document.getElementById('fileInfo');
+        const btnConsistency = document.getElementById('btnConsistency');
+        const btnStructure = document.getElementById('btnStructure');
+        const btnSend = document.getElementById('btnSend');
+
+        let uploadedManuscript = ""; 
+
+        const analysisPanel = document.getElementById('analysisPanel');
+        const analysisTitle = document.getElementById('analysisTitle');
+        const analysisResult = document.getElementById('analysisResult');
+        const analysisLoader = document.getElementById('analysisLoader');
+
+        const chatWindow = document.getElementById('chatWindow');
+        const userInput = document.getElementById('userInput');
+        const chatLoader = document.getElementById('chatLoader');
+
+        // 파일 업로드 처리
+        fileUpload.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                if (file.type !== "text/plain") {
+                    alert(".txt 파일만 업로드할 수 있습니다.");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedManuscript = e.target.result;
+                    fileInfo.textContent = `'${file.name}' 파일이 성공적으로 로드되었습니다.`;
+                    
+                    btnConsistency.classList.add('enabled');
+                    btnStructure.classList.add('enabled');
+                    btnSend.classList.add('enabled');
+                };
+                reader.onerror = function() {
+                    fileInfo.textContent = "파일을 읽는 중 오류가 발생했습니다.";
+                    uploadedManuscript = "";
+                    btnConsistency.classList.remove('enabled');
+                    btnStructure.classList.remove('enabled');
+                };
+                
+                reader.readAsText(file, 'UTF-8'); 
+
+            } else {
+                fileInfo.textContent = "선택된 파일이 없습니다.";
+                uploadedManuscript = "";
+                btnConsistency.classList.remove('enabled');
+                btnStructure.classList.remove('enabled');
+            }
+        });
+
+
+        // 공통 AI 요청 함수
+        async function fetchAIResponse(analysisType, manuscript, userQuestion = '') {
+            const body = {
+                analysis_type: analysisType,
+                manuscript: manuscript,
+                user_question: userQuestion
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorData.error}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    return `[오류 발생]: ${data.error}`;
+                }
+                
+                return data.analysis_result;
+
+            } catch (error) {
+                console.error('Error fetching AI response:', error);
+                return `[서버 접속 오류]: Python 서버(app.py)가 실행 중인지 확인해주세요. ${error.message}`;
+            }
+        }
+
+        // '설정 오류' 또는 '구조 분석' 요청
+        async function requestAnalysis(type) {
+            if (uploadedManuscript === '') {
+                alert('먼저 원고 .txt 파일을 업로드해주세요.');
+                return;
+            }
+
+            analysisLoader.style.display = 'block'; 
+            analysisResult.innerHTML = ''; // innerHTML로 비움
+            analysisPanel.style.display = 'block'; 
+
+            if (type === 'consistency') {
+                analysisTitle.textContent = '캐릭터/세계관 불일치 분석';
+            } else if (type === 'structure') {
+                analysisTitle.textContent = '챕터 구조 분석';
+            }
+
+            const resultText = await fetchAIResponse(type, uploadedManuscript);
+            
+            analysisLoader.style.display = 'none'; 
+            // ★★★ 2. .textContent -> .innerHTML = marked.parse() ★★★
+            analysisResult.innerHTML = marked.parse(resultText); // 텍스트를 HTML로 변환하여 삽입
+        }
+
+        // 'Q&A' 메시지 전송
+        async function sendMessage() {
+            const question = userInput.value.trim();
+
+            if (question === '') return;
+            if (uploadedManuscript === '') {
+                alert('질문의 바탕이 될 원고 .txt 파일을 먼저 업로드해주세요.');
+                return;
+            }
+
+            appendMessage('user', question);
+            userInput.value = '';
+            chatLoader.style.display = 'block'; 
+
+            const aiResponse = await fetchAIResponse('question', uploadedManuscript, question);
+            
+            chatLoader.style.display = 'none'; 
+            appendMessage('ai', aiResponse);
+        }
+
+        // 채팅창에 메시지 추가
+        function appendMessage(sender, text) {
+            let messageHtml = '';
+            if (sender === 'user') {
+                messageHtml = `<div class="chat-message user-message"><p>${text}</p></div>`;
+            } else {
+                // ★★★ 3. AI 메시지도 marked.parse() 사용 ★★★
+                // (스타일 적용을 위해 div로 한 번 더 감쌌습니다)
+                const convertedHtml = marked.parse(text);
+                messageHtml = `
+                    <div class="chat-message ai-message">
+                        <strong>AI 편집자:</strong>
+                        <div class="ai-message-content">
+                            ${convertedHtml}
+                        </div>
+                    </div>`;
+            }
+            chatWindow.innerHTML += messageHtml;
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+        
+        // 엔터키로 전송
+        function handleKeydown(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+    </script>
+</body>
+</html>
