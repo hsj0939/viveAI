@@ -1,5 +1,7 @@
 # Novel AI Editor (소설 AI 편집기)
 
+---
+
 ## [cite_start]1. 제품 개요 [cite: 2]
 [cite_start]이 제품은 소설 작가를 위한 데스크탑 AI 도우미 앱입니다. [cite: 3] [cite_start]작가가 집필한 원고 텍스트를 업로드하면, AI가 캐릭터 및 세계관 설정의 일관성을 분석하고, 챕터별 구조와 개연성 흐름을 점검합니다. [cite: 3]
 
