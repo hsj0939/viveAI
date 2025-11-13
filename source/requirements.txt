@@ -1,8 +1,0 @@
-flask
-ollama
-langchain
-langchain-community
-pypdf
-faiss-cpu
-sentence-transformers
-langchain-ollama
